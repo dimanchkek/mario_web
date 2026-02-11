@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Super Mario Clone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --fg: #eaeaea;
+            --accent: #e94560;
+            --accent2: #0f3460;
+            --sky: #5c94fc;
+            --ground: #c84c0c;
+            --brick: #d88040;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16/9;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(233, 69, 96, 0.3);
+        }
+
+        /* Main Menu */
+        #mainMenu {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, #5c94fc 0%, #5c94fc 60%, #1a1a2e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-radius: 8px;
+            z-index: 10;
+        }
+
+        #mainMenu.hidden { display: none; }
+
+        .menu-title {
+            font-size: clamp(16px, 4vw, 32px);
+            color: #e94560;
+            text-shadow: 4px 4px 0 #000, -2px -2px 0 #ffd700;
+            margin-bottom: 40px;
+            animation: titleBounce 1s ease-in-out infinite;
+        }
+
+        @keyframes titleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .menu-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(10px, 2.5vw, 16px);
+            padding: 15px 40px;
+            background: linear-gradient(180deg, #e94560 0%, #c73e54 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #8b2a3a, 0 8px 20px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #8b2a3a, 0 12px 25px rgba(0,0,0,0.4);
+        }
+
+        .menu-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #8b2a3a;
+        }
+
+        /* Settings Panel */
+        #settingsPanel {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            border-radius: 8px;
+            z-index: 20;
+        }
+
+        #settingsPanel.hidden { display: none; }
+
+        .settings-title {
+            font-size: clamp(14px, 3vw, 24px);
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: clamp(8px, 2vw, 12px);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #333;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active { background: #e94560; }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after { transform: translateX(30px); }
+
+        /* Touch Controls */
+        #touchControls {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #touchControls.hidden { display: none; }
+
+        .touch-btn {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid rgba(255,255,255,0.4);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            user-select: none;
+            transition: background 0.1s;
+        }
+
+        .touch-btn:active { background: rgba(233, 69, 96, 0.5); }
+
+        .touch-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        #btnLeft { left: 20px; bottom: 30px; }
+        #btnRight { left: 90px; bottom: 30px; }
+        #btnJump { right: 30px; bottom: 30px; width: 80px; height: 80px; }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: clamp(8px, 2vw, 12px);
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        #hud.hidden { display: none; }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Game Over / Win Screen */
+        #gameOverScreen, #winScreen {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-radius: 8px;
+            z-index: 15;
+        }
+
+        #gameOverScreen.hidden, #winScreen.hidden { display: none; }
+
+        .end-title {
+            font-size: clamp(20px, 5vw, 40px);
+            color: #e94560;
+            text-shadow: 4px 4px 0 #000;
+        }
+
+        #winScreen .end-title { color: #ffd700; }
+
+        .final-score {
+            font-size: clamp(10px, 2.5vw, 16px);
+            color: white;
+        }
+
+        /* Decorative clouds in menu */
+        .menu-clouds {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.9;
+            animation: floatCloud 8s ease-in-out infinite;
+        }
+
+        @keyframes floatCloud {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(20px); }
+        }
+
+        .menu-mario {
+            width: 64px;
+            height: 64px;
+            image-rendering: pixelated;
+            animation: marioIdle 0.5s steps(2) infinite;
+        }
+
+        @keyframes marioIdle {
+            0% { transform: scaleX(1); }
+            50% { transform: scaleX(-1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="hud" class="hidden">
+            <div class="hud-item">
+                <span>MARIO</span>
+                <span id="scoreDisplay">000000</span>
+            </div>
+            <div class="hud-item">
+                <span>COINS</span>
+                <span id="coinDisplay">x00</span>
+            </div>
+            <div class="hud-item">
+                <span>WORLD</span>
+                <span>1-1</span>
+            </div>
+            <div class="hud-item">
+                <span>LIVES</span>
+                <span id="livesDisplay">x03</span>
+            </div>
+        </div>
+
+        <!-- Touch Controls -->
+        <div id="touchControls" class="hidden">
+            <div id="btnLeft" class="touch-btn">
+                <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+            </div>
+            <div id="btnRight" class="touch-btn">
+                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+            </div>
+            <div id="btnJump" class="touch-btn">
+                <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5H7z"/></svg>
+            </div>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="mainMenu">
+            <div class="menu-clouds">
+                <div class="cloud" style="width:80px;height:40px;top:20%;left:10%"></div>
+                <div class="cloud" style="width:100px;height:50px;top:15%;left:60%;animation-delay:-2s"></div>
+                <div class="cloud" style="width:60px;height:30px;top:30%;left:80%;animation-delay:-4s"></div>
+            </div>
+            <canvas id="menuMario" class="menu-mario" width="64" height="64"></canvas>
+            <h1 class="menu-title">SUPER MARIO</h1>
+            <button class="menu-btn" id="startBtn">START</button>
+            <button class="menu-btn" id="settingsBtn">SETTINGS</button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settingsPanel" class="hidden">
+            <h2 class="settings-title">SETTINGS</h2>
+            <div class="setting-row">
+                <span>TOUCH CONTROLS</span>
+                <div id="touchToggle" class="toggle-switch"></div>
+            </div>
+            <button class="menu-btn" id="backBtn">BACK</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="hidden">
+            <h2 class="end-title">GAME OVER</h2>
+            <p class="final-score">SCORE: <span id="finalScore">0</span></p>
+            <button class="menu-btn" id="retryBtn">RETRY</button>
+            <button class="menu-btn" id="menuBtn">MENU</button>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="winScreen" class="hidden">
+            <h2 class="end-title">LEVEL COMPLETE!</h2>
+            <p class="final-score">SCORE: <span id="winScore">0</span></p>
+            <button class="menu-btn" id="playAgainBtn">PLAY AGAIN</button>
+            <button class="menu-btn" id="menuBtn2">MENU</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== CONSTANTS ====================
+        const TILE_SIZE = 32;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 4;
+        const MAX_FALL_SPEED = 12;
+
+        // ==================== SPRITE RENDERER ====================
+        class SpriteRenderer {
+            static drawMario(ctx, x, y, width, height, direction, frame, isJumping, isSmall) {
+                ctx.save();
+                
+                const scale = isSmall ? 0.7 : 1;
+                const h = height * scale;
+                const offsetY = height - h;
+                
+                if (direction === -1) {
+                    ctx.translate(x + width, y + offsetY);
+                    ctx.scale(-1, 1);
+                    x = 0;
+                    y = 0;
+                } else {
+                    x = x + (direction === -1 ? 0 : 0);
+                    y = y + offsetY;
+                }
+
+                // Body (red)
+                ctx.fillStyle = '#e94560';
+                if (isJumping) {
+                    ctx.fillRect(x + 4, y + h * 0.3, width - 8, h * 0.4);
+                } else {
+                    const bounce = Math.sin(frame * 0.3) * 2;
+                    ctx.fillRect(x + 4, y + h * 0.35 + bounce, width - 8, h * 0.35);
+                }
+
+                // Head (skin)
+                ctx.fillStyle = '#ffc8a8';
+                ctx.fillRect(x + 6, y + h * 0.1, width - 12, h * 0.25);
+
+                // Hat (red)
+                ctx.fillStyle = '#e94560';
+                ctx.fillRect(x + 4, y, width - 8, h * 0.15);
+                ctx.fillRect(x + 2, y + h * 0.1, 8, h * 0.08);
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x + width - 12, y + h * 0.15, 3, 3);
+
+                // Mustache
+                ctx.fillStyle = '#4a2800';
+                ctx.fillRect(x + width - 14, y + h * 0.25, 8, 3);
+
+                // Legs
+                ctx.fillStyle = '#1a4a8a';
+                if (isJumping) {
+                    ctx.fillRect(x + 4, y + h * 0.7, 8, h * 0.3);
+                    ctx.fillRect(x + width - 12, y + h * 0.65, 8, h * 0.25);
+                } else {
+                    const legOffset = Math.sin(frame * 0.4) * 3;
+                    ctx.fillRect(x + 6 + legOffset, y + h * 0.7, 7, h * 0.3);
+                    ctx.fillRect(x + width - 13 - legOffset, y + h * 0.7, 7, h * 0.3);
+                }
+
+                ctx.restore();
+            }
+
+            static drawGoomba(ctx, x, y, width, height, frame) {
+                const bounce = Math.abs(Math.sin(frame * 0.15)) * 3;
+                
+                // Body
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(x + width/2, y + height * 0.4 + bounce, width/2 - 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Feet
+                ctx.fillStyle = '#4a2800';
+                const footOffset = Math.sin(frame * 0.2) * 2;
+                ctx.fillRect(x + 2 + footOffset, y + height - 8 + bounce, 10, 8);
+                ctx.fillRect(x + width - 12 - footOffset, y + height - 8 + bounce, 10, 8);
+
+                // Eyes
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(x + 8, y + height * 0.25 + bounce, 8, 10);
+                ctx.fillRect(x + width - 16, y + height * 0.25 + bounce, 8, 10);
+                
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x + 12, y + height * 0.3 + bounce, 4, 6);
+                ctx.fillRect(x + width - 16, y + height * 0.3 + bounce, 4, 6);
+
+                // Eyebrows
+                ctx.fillStyle = '#4a2800';
+                ctx.fillRect(x + 6, y + height * 0.2 + bounce, 12, 3);
+                ctx.fillRect(x + width - 18, y + height * 0.2 + bounce, 12, 3);
+            }
+
+            static drawCoin(ctx, x, y, size, frame) {
+                const scale = 0.8 + Math.sin(frame * 0.1) * 0.2;
+                const width = size * scale;
+                const offsetX = (size - width) / 2;
+
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.ellipse(x + size/2, y + size/2, width/2 - 2, size/2 - 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffec8b';
+                ctx.beginPath();
+                ctx.ellipse(x + size/2 - 3, y + size/2 - 3, width/4, size/4, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            static drawMushroom(ctx, x, y, width, height, frame) {
+                const bounce = Math.sin(frame * 0.1) * 2;
+
+                // Stem
+                ctx.fillStyle = '#f5f5dc';
+                ctx.fillRect(x + width * 0.25, y + height * 0.5 + bounce, width * 0.5, height * 0.5);
+
+                // Cap
+                ctx.fillStyle = '#e94560';
+                ctx.beginPath();
+                ctx.arc(x + width/2, y + height * 0.4 + bounce, width/2 - 2, 0, Math.PI, true);
+                ctx.fill();
+
+                // Spots
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x + width * 0.3, y + height * 0.3 + bounce, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x + width * 0.65, y + height * 0.35 + bounce, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            static drawBrick(ctx, x, y, size) {
+                ctx.fillStyle = '#d88040';
+                ctx.fillRect(x, y, size, size);
+
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(x, y + size/2 - 1, size, 2);
+                ctx.fillRect(x + size/2 - 1, y, 2, size/2);
+                ctx.fillRect(x + size/4 - 1, y + size/2, 2, size/2);
+                ctx.fillRect(x + size * 0.75 - 1, y + size/2, 2, size/2);
+
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, size, size);
+            }
+
+            static drawQuestionBlock(ctx, x, y, size, frame) {
+                const brightness = 180 + Math.sin(frame * 0.1) * 40;
+                ctx.fillStyle = `rgb(${brightness}, ${brightness * 0.7}, 0)`;
+                ctx.fillRect(x, y, size, size);
+
+                ctx.strokeStyle = '#8b4513';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, size, size);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${size * 0.6}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('?', x + size/2, y + size/2);
+            }
+
+            static drawPipe(ctx, x, y, width, height) {
+                // Pipe body
+                ctx.fillStyle = '#228b22';
+                ctx.fillRect(x + 4, y + 20, width - 8, height - 20);
+
+                // Pipe top
+                ctx.fillStyle = '#32cd32';
+                ctx.fillRect(x, y, width, 24);
+
+                // Highlight
+                ctx.fillStyle = '#90ee90';
+                ctx.fillRect(x + 4, y + 4, 8, 16);
+                ctx.fillRect(x + 8, y + 24, 6, height - 28);
+
+                // Shadow
+                ctx.fillStyle = '#006400';
+                ctx.fillRect(x + width - 12, y + 4, 8, 16);
+            }
+
+            static drawFlag(ctx, x, y, width, height) {
+                // Pole
+                ctx.fillStyle = '#228b22';
+                ctx.fillRect(x + width/2 - 4, y, 8, height);
+
+                // Ball on top
+                ctx.fillStyle = '#32cd32';
+                ctx.beginPath();
+                ctx.arc(x + width/2, y, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Flag
+                ctx.fillStyle = '#e94560';
+                ctx.beginPath();
+                ctx.moveTo(x + width/2 + 4, y + 10);
+                ctx.lineTo(x + width/2 + 50, y + 30);
+                ctx.lineTo(x + width/2 + 4, y + 50);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            static drawGround(ctx, x, y, size) {
+                ctx.fillStyle = '#c84c0c';
+                ctx.fillRect(x, y, size, size);
+
+                ctx.fillStyle = '#8b3508';
+                ctx.fillRect(x, y, size, 4);
+
+                ctx.fillStyle = '#a04000';
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillRect(x + (i * 12) + 4, y + 8, 8, 4);
+                    ctx.fillRect(x + (i * 12) + 8, y + 20, 8, 4);
+                }
+            }
+
+            static drawCloud(ctx, x, y, size) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.arc(x + size * 0.3, y + size * 0.5, size * 0.3, 0, Math.PI * 2);
+                ctx.arc(x + size * 0.5, y + size * 0.3, size * 0.35, 0, Math.PI * 2);
+                ctx.arc(x + size * 0.7, y + size * 0.5, size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            static drawHill(ctx, x, y, width, height) {
+                ctx.fillStyle = '#228b22';
+                ctx.beginPath();
+                ctx.moveTo(x, y + height);
+                ctx.quadraticCurveTo(x + width/2, y, x + width, y + height);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#32cd32';
+                ctx.beginPath();
+                ctx.arc(x + width/2, y + height * 0.6, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ==================== GAME OBJECTS ====================
+        class GameObject {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+            }
+
+            get bounds() {
+                return {
+                    left: this.x,
+                    right: this.x + this.width,
+                    top: this.y,
+                    bottom: this.y + this.height
+                };
+            }
+
+            intersects(other) {
+                return this.bounds.left < other.bounds.right &&
+                       this.bounds.right > other.bounds.left &&
+                       this.bounds.top < other.bounds.bottom &&
+                       this.bounds.bottom > other.bounds.top;
+            }
+        }
+
+        // ==================== PLAYER ====================
+        class Player extends GameObject {
+            constructor(x, y) {
+                super(x, y, 28, 40);
+                this.vx = 0;
+                this.vy = 0;
+                this.direction = 1;
+                this.frame = 0;
+                this.isJumping = false;
+                this.onGround = false;
+                this.isSmall = true;
+                this.invincible = false;
+                this.invincibleTimer = 0;
+                this.dead = false;
+            }
+
+            update(keys, level) {
+                // Even if dead, we need physics to fall into the pit
+                if (this.dead) {
+                    this.vy += GRAVITY;
+                    if (this.vy > MAX_FALL_SPEED) this.vy = MAX_FALL_SPEED;
+                    this.y += this.vy;
+                    return null; // No block interaction when dead
+                }
+
+                // Horizontal movement
+                this.vx = 0;
+                if (keys.left) {
+                    this.vx = -MOVE_SPEED;
+                    this.direction = -1;
+                }
+                if (keys.right) {
+                    this.vx = MOVE_SPEED;
+                    this.direction = 1;
+                }
+
+                // Jump
+                if (keys.jump && this.onGround) {
+                    this.vy = JUMP_FORCE;
+                    this.isJumping = true;
+                    this.onGround = false;
+                }
+
+                // Gravity
+                this.vy += GRAVITY;
+                if (this.vy > MAX_FALL_SPEED) this.vy = MAX_FALL_SPEED;
+
+                // Move and collide
+                this.x += this.vx;
+                this.resolveHorizontalCollisions(level);
+                
+                this.y += this.vy;
+                const hitBlock = this.resolveVerticalCollisions(level);
+
+                // Animation frame
+                if (Math.abs(this.vx) > 0) {
+                    this.frame++;
+                }
+
+                // Invincibility timer
+                if (this.invincible) {
+                    this.invincibleTimer--;
+                    if (this.invincibleTimer <= 0) {
+                        this.invincible = false;
+                    }
+                }
+
+                // Fall death - this sets this.dead = true
+                if (this.y > level.height + 100) {
+                    this.die();
+                }
+                
+                return hitBlock;
+            }
+
+            resolveHorizontalCollisions(level) {
+                for (const block of level.blocks) {
+                    if (this.intersects(block)) {
+                        if (this.vx > 0) {
+                            this.x = block.x - this.width;
+                        } else if (this.vx < 0) {
+                            this.x = block.x + block.width;
+                        }
+                    }
+                }
+            }
+
+            resolveVerticalCollisions(level) {
+                this.onGround = false;
+                
+                for (const block of level.blocks) {
+                    if (this.intersects(block)) {
+                        if (this.vy > 0) {
+                            this.y = block.y - this.height;
+                            this.vy = 0;
+                            this.onGround = true;
+                            this.isJumping = false;
+                        } else if (this.vy < 0) {
+                            this.y = block.y + block.height;
+                            this.vy = 0;
+                            
+                            // Hit question block
+                            if (block instanceof QuestionBlock && !block.hit) {
+                                block.hit = true;
+                                return block; // Return the block to spawn item
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            die() {
+                if (this.dead) return; // Prevent double death
+                this.dead = true;
+                this.vy = JUMP_FORCE * 0.8; // Small jump up before falling
+            }
+
+            takeDamage() {
+                if (this.invincible) return false;
+                
+                if (!this.isSmall) {
+                    this.isSmall = true;
+                    this.height = 40;
+                    this.invincible = true;
+                    this.invincibleTimer = 120;
+                    return false;
+                } else {
+                    this.die();
+                    return true;
+                }
+            }
+
+            draw(ctx, cameraX) {
+                if (this.dead && this.y > 1000) return;
+                
+                // Blink when invincible
+                if (this.invincible && Math.floor(this.invincibleTimer / 5) % 2 === 0) {
+                    return;
+                }
+
+                SpriteRenderer.drawMario(
+                    ctx, 
+                    this.x - cameraX, 
+                    this.y, 
+                    this.width, 
+                    this.height, 
+                    this.direction, 
+                    this.frame, 
+                    this.isJumping,
+                    this.isSmall
+                );
+            }
+        }
+
+        // ==================== BLOCKS ====================
+        class Block extends GameObject {
+            constructor(x, y, size) {
+                super(x, y, size, size);
+                this.size = size;
+            }
+
+            draw(ctx, cameraX) {
+                SpriteRenderer.drawBrick(ctx, this.x - cameraX, this.y, this.size);
+            }
+        }
+
+        class QuestionBlock extends GameObject {
+            constructor(x, y, size, content = 'coin') {
+                super(x, y, size, size);
+                this.size = size;
+                this.content = content;
+                this.hit = false;
+                this.frame = 0;
+            }
+
+            draw(ctx, cameraX) {
+                if (this.hit) {
+                    ctx.fillStyle = '#8b4513';
+                    ctx.fillRect(this.x - cameraX, this.y, this.size, this.size);
+                } else {
+                    SpriteRenderer.drawQuestionBlock(ctx, this.x - cameraX, this.y, this.size, this.frame);
+                }
+            }
+
+            update() {
+                if(!this.hit) this.frame++;
+            }
+        }
+
+        class Ground extends GameObject {
+            constructor(x, y, size) {
+                super(x, y, size, size);
+                this.size = size;
+            }
+
+            draw(ctx, cameraX) {
+                SpriteRenderer.drawGround(ctx, this.x - cameraX, this.y, this.size);
+            }
+        }
+
+        class Pipe extends GameObject {
+            constructor(x, y, width, height) {
+                super(x, y, width, height);
+            }
+
+            draw(ctx, cameraX) {
+                SpriteRenderer.drawPipe(ctx, this.x - cameraX, this.y, this.width, this.height);
+            }
+        }
+
+        // ==================== COLLECTIBLES ====================
+        class Coin extends GameObject {
+            constructor(x, y) {
+                super(x, y, 24, 24);
+                this.collected = false;
+                this.frame = 0;
+                this.floatOffset = 0;
+            }
+
+            update() {
+                this.frame++;
+                if (this.floatOffset > 0) {
+                    this.floatOffset -= 3;
+                    this.y -= 3;
+                }
+            }
+
+            collect() {
+                this.collected = true;
+                return 100;
+            }
+
+            draw(ctx, cameraX) {
+                if (this.collected) return;
+                SpriteRenderer.drawCoin(ctx, this.x - cameraX, this.y + this.floatOffset, 24, this.frame);
+            }
+        }
+
+        class Mushroom extends GameObject {
+            constructor(x, y) {
+                super(x, y, 28, 28);
+                this.collected = false;
+                this.vx = 2;
+                this.vy = 0;
+                this.frame = 0;
+                this.emerging = true;
+                this.emergeY = y + 28;
+            }
+
+            update(level) {
+                this.frame++;
+
+                if (this.emerging) {
+                    this.y -= 1;
+                    if (this.y <= this.emergeY - 28) {
+                        this.emerging = false;
+                    }
+                    return;
+                }
+
+                // Movement
+                this.vy += GRAVITY * 0.5;
+                if (this.vy > MAX_FALL_SPEED) this.vy = MAX_FALL_SPEED;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Ground collision
+                for (const block of level.blocks) {
+                    if (this.intersects(block)) {
+                        if (this.vy > 0) {
+                            this.y = block.y - this.height;
+                            this.vy = 0;
+                        }
+                        // Wall collision for mushroom
+                        if (this.vx > 0 && this.bounds.right > block.bounds.left && 
+                            this.bounds.left < block.bounds.left && this.bounds.bottom > block.bounds.top) {
+                            this.vx = -this.vx;
+                        } else if (this.vx < 0 && this.bounds.left < block.bounds.right && 
+                            this.bounds.right > block.bounds.right && this.bounds.bottom > block.bounds.top) {
+                            this.vx = -this.vx;
+                        }
+                    }
+                }
+            }
+
+            collect() {
+                this.collected = true;
+                return 'life';
+            }
+
+            draw(ctx, cameraX) {
+                if (this.collected) return;
+                SpriteRenderer.drawMushroom(ctx, this.x - cameraX, this.y, this.width, this.height, this.frame);
+            }
+        }
+
+        // ==================== ENEMIES ====================
+        class Goomba extends GameObject {
+            constructor(x, y) {
+                super(x, y, 28, 28);
+                this.vx = -1.5;
+                this.vy = 0;
+                this.frame = 0;
+                this.dead = false;
+                this.deathTimer = 0;
+            }
+
+            update(level) {
+                if (this.dead) {
+                    this.deathTimer++;
+                    return;
+                }
+
+                this.frame++;
+                this.vy += GRAVITY * 0.5;
+                if (this.vy > MAX_FALL_SPEED) this.vy = MAX_FALL_SPEED;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Ground collision
+                for (const block of level.blocks) {
+                    if (this.intersects(block)) {
+                        if (this.vy > 0) {
+                            this.y = block.y - this.height;
+                            this.vy = 0;
+                        }
+                    }
+                }
+
+                // Wall collision
+                for (const block of level.blocks) {
+                    // Simple wall check for enemies
+                    if (this.intersects(block) && Math.abs(this.bounds.bottom - block.bounds.top) > 5) {
+                         if ((this.vx > 0 && this.bounds.right > block.bounds.left) ||
+                             (this.vx < 0 && this.bounds.left < block.bounds.right)) {
+                            this.vx = -this.vx;
+                            this.x += this.vx * 2; // push out
+                         }
+                    }
+                }
+            }
+
+            stomp() {
+                this.dead = true;
+                this.height = 14;
+                this.deathTimer = 0;
+                return 100;
+            }
+
+            draw(ctx, cameraX) {
+                if (this.dead && this.deathTimer > 30) return;
+                if (this.dead) {
+                    ctx.fillStyle = '#8b4513';
+                    ctx.fillRect(this.x - cameraX, this.y + 14, this.width, 14);
+                } else {
+                    SpriteRenderer.drawGoomba(ctx, this.x - cameraX, this.y, this.width, this.height, this.frame);
+                }
+            }
+        }
+
+        // ==================== FLAG ====================
+        class Flag extends GameObject {
+            constructor(x, y, height) {
+                super(x, y - height, 60, height);
+                this.reached = false;
+            }
+
+            draw(ctx, cameraX) {
+                SpriteRenderer.drawFlag(ctx, this.x - cameraX, this.y, this.width, this.height);
+            }
+        }
+
+        // ==================== LEVEL ====================
+        class Level {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.width = TILE_SIZE * 200;
+                this.height = canvas.height;
+                this.blocks = [];
+                this.enemies = [];
+                this.coins = [];
+                this.mushrooms = [];
+                this.pipes = [];
+                this.flag = null;
+                this.decorations = [];
+            }
+
+            generate() {
+                const groundY = this.height - TILE_SIZE;
+                const blockY = groundY - TILE_SIZE * 3;
+
+                // Ground
+                for (let x = 0; x < this.width; x += TILE_SIZE) {
+                    // Gaps
+                    if ((x > TILE_SIZE * 30 && x < TILE_SIZE * 35) ||
+                        (x > TILE_SIZE * 60 && x < TILE_SIZE * 65) ||
+                        (x > TILE_SIZE * 100 && x < TILE_SIZE * 106)) {
+                        continue;
+                    }
+                    this.blocks.push(new Ground(x, groundY, TILE_SIZE));
+                    this.blocks.push(new Ground(x, groundY + TILE_SIZE, TILE_SIZE));
+                }
+
+                // Question blocks with coins
+                const qBlockPositions = [
+                    { x: TILE_SIZE * 10, y: blockY },
+                    { x: TILE_SIZE * 15, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 20, y: blockY },
+                    { x: TILE_SIZE * 45, y: blockY }, // Mushroom
+                    { x: TILE_SIZE * 70, y: blockY },
+                    { x: TILE_SIZE * 90, y: blockY - TILE_SIZE },
+                    { x: TILE_SIZE * 120, y: blockY },
+                ];
+
+                qBlockPositions.forEach((pos, i) => {
+                    const content = i === 3 ? 'mushroom' : 'coin';
+                    this.blocks.push(new QuestionBlock(pos.x, pos.y, TILE_SIZE, content));
+                });
+
+                // Brick platforms
+                const brickPlatforms = [
+                    { x: TILE_SIZE * 25, y: blockY, count: 4 },
+                    { x: TILE_SIZE * 50, y: blockY - TILE_SIZE, count: 5 },
+                    { x: TILE_SIZE * 75, y: blockY, count: 6 },
+                    { x: TILE_SIZE * 110, y: blockY - TILE_SIZE * 2, count: 4 },
+                ];
+
+                brickPlatforms.forEach(platform => {
+                    for (let i = 0; i < platform.count; i++) {
+                        this.blocks.push(new Block(platform.x + i * TILE_SIZE, platform.y, TILE_SIZE));
+                    }
+                });
+
+                // Pipes
+                const pipePositions = [
+                    { x: TILE_SIZE * 18, height: TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 40, height: TILE_SIZE * 3 },
+                    { x: TILE_SIZE * 55, height: TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 80, height: TILE_SIZE * 4 },
+                    { x: TILE_SIZE * 115, height: TILE_SIZE * 2 },
+                ];
+
+                pipePositions.forEach(pipe => {
+                    const p = new Pipe(pipe.x, groundY - pipe.height, TILE_SIZE * 2, pipe.height);
+                    this.pipes.push(p);
+                    this.blocks.push(p);
+                });
+
+                // Coins floating
+                const coinPositions = [
+                    { x: TILE_SIZE * 8, y: blockY - TILE_SIZE },
+                    { x: TILE_SIZE * 9, y: blockY - TILE_SIZE },
+                    { x: TILE_SIZE * 32, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 33, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 34, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 65, y: blockY },
+                    { x: TILE_SIZE * 85, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 86, y: blockY - TILE_SIZE * 2 },
+                    { x: TILE_SIZE * 125, y: blockY },
+                ];
+
+                coinPositions.forEach(pos => {
+                    this.coins.push(new Coin(pos.x, pos.y));
+                });
+
+                // Enemies
+                const enemyPositions = [
+                    { x: TILE_SIZE * 12 },
+                    { x: TILE_SIZE * 22 },
+                    { x: TILE_SIZE * 35 },
+                    { x: TILE_SIZE * 42 },
+                    { x: TILE_SIZE * 52 },
+                    { x: TILE_SIZE * 68 },
+                    { x: TILE_SIZE * 78 },
+                    { x: TILE_SIZE * 88 },
+                    { x: TILE_SIZE * 95 },
+                    { x: TILE_SIZE * 105 },
+                    { x: TILE_SIZE * 118 },
+                ];
+
+                enemyPositions.forEach(pos => {
+                    this.enemies.push(new Goomba(pos.x, groundY - 28));
+                });
+
+                // Flag at end
+                this.flag = new Flag(TILE_SIZE * 190, groundY, TILE_SIZE * 8);
+
+                // Decorations
+                for (let i = 0; i < 15; i++) {
+                    this.decorations.push({
+                        type: 'cloud',
+                        x: TILE_SIZE * (10 + i * 15),
+                        y: 60 + Math.random() * 60,
+                        size: 50 + Math.random() * 30
+                    });
+                }
+
+                for (let i = 0; i < 8; i++) {
+                    this.decorations.push({
+                        type: 'hill',
+                        x: TILE_SIZE * (5 + i * 25),
+                        y: groundY,
+                        width: TILE_SIZE * (4 + Math.random() * 3),
+                        height: TILE_SIZE * (2 + Math.random() * 2)
+                    });
+                }
+            }
+
+            update(player, game) {
+                // Update question blocks
+                this.blocks.forEach(block => {
+                    if (block instanceof QuestionBlock) block.update();
+                });
+
+                // Update coins
+                this.coins.forEach(coin => coin.update());
+
+                // Update mushrooms
+                this.mushrooms.forEach(mushroom => mushroom.update(this));
+
+                // Update enemies
+                this.enemies.forEach(enemy => enemy.update(this));
+
+                // Check coin collisions
+                this.coins.forEach(coin => {
+                    if (!coin.collected && player.intersects(coin)) {
+                        const points = coin.collect();
+                        game.addScore(points);
+                        game.addCoin();
+                    }
+                });
+
+                // Check mushroom collisions
+                this.mushrooms = this.mushrooms.filter(mushroom => {
+                    if (!mushroom.collected && player.intersects(mushroom) && !mushroom.emerging) {
+                        const reward = mushroom.collect();
+                        if (reward === 'life') {
+                            game.addLife();
+                        }
+                        return false;
+                    }
+                    if (mushroom.y > this.height + 100) return false;
+                    return true;
+                });
+
+                // Check enemy collisions
+                this.enemies.forEach(enemy => {
+                    if (enemy.dead) return;
+                    
+                    if (player.intersects(enemy)) {
+                        // Stomp from above
+                        if (player.vy > 0 && player.bounds.bottom < enemy.bounds.top + enemy.height / 2) {
+                            const points = enemy.stomp();
+                            game.addScore(points);
+                            player.vy = JUMP_FORCE * 0.5;
+                        } else if (!player.invincible) {
+                            const died = player.takeDamage();
+                            if (died) {
+                                game.gameOver();
+                            }
+                        }
+                    }
+                });
+
+                // Check flag collision
+                if (this.flag && !this.flag.reached && player.intersects(this.flag)) {
+                    this.flag.reached = true;
+                    game.win();
+                }
+            }
+
+            spawnMushroom(x, y) {
+                this.mushrooms.push(new Mushroom(x, y));
+            }
+
+            draw(ctx, cameraX) {
+                // Sky gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
+                gradient.addColorStop(0, '#5c94fc');
+                gradient.addColorStop(1, '#87ceeb');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, this.canvas.width, this.height);
+
+                // Decorations
+                this.decorations.forEach(dec => {
+                    if (dec.type === 'cloud') {
+                        SpriteRenderer.drawCloud(ctx, dec.x - cameraX * 0.3, dec.y, dec.size);
+                    } else if (dec.type === 'hill') {
+                        SpriteRenderer.drawHill(ctx, dec.x - cameraX * 0.5, dec.y, dec.width, dec.height);
+                    }
+                });
+
+                // Ground
+                this.blocks.forEach(block => {
+                    if (block.x - cameraX > -TILE_SIZE && block.x - cameraX < this.canvas.width + TILE_SIZE) {
+                        block.draw(ctx, cameraX);
+                    }
+                });
+
+                // Coins
+                this.coins.forEach(coin => coin.draw(ctx, cameraX));
+
+                // Mushrooms
+                this.mushrooms.forEach(mushroom => mushroom.draw(ctx, cameraX));
+
+                // Enemies
+                this.enemies.forEach(enemy => enemy.draw(ctx, cameraX));
+
+                // Flag
+                if (this.flag) {
+                    this.flag.draw(ctx, cameraX);
+                }
+            }
+        }
+
+        // ==================== GAME ====================
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                
+                this.level = null;
+                this.player = null;
+                this.cameraX = 0;
+                
+                this.score = 0;
+                this.coins = 0;
+                this.lives = 3;
+                
+                this.keys = {
+                    left: false,
+                    right: false,
+                    jump: false
+                };
+                
+                this.gameState = 'menu';
+                this.frameCount = 0;
+                this.touchControlsEnabled = false;
+                
+                this.setupEventListeners();
+                this.drawMenuMario();
+            }
+
+            resizeCanvas() {
+                const container = document.getElementById('gameContainer');
+                const rect = container.getBoundingClientRect();
+                this.canvas.width = 800;
+                this.canvas.height = 450;
+            }
+
+            drawMenuMario() {
+                const menuCanvas = document.getElementById('menuMario');
+                const ctx = menuCanvas.getContext('2d');
+                SpriteRenderer.drawMario(ctx, 16, 12, 32, 48, 1, 0, false, true);
+            }
+
+            setupEventListeners() {
+                // Keyboard
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'a') this.keys.left = true;
+                    if (e.key === 'ArrowRight' || e.key === 'd') this.keys.right = true;
+                    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') this.keys.jump = true;
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'a') this.keys.left = false;
+                    if (e.key === 'ArrowRight' || e.key === 'd') this.keys.right = false;
+                    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') this.keys.jump = false;
+                });
+
+                // Touch controls
+                const btnLeft = document.getElementById('btnLeft');
+                const btnRight = document.getElementById('btnRight');
+                const btnJump = document.getElementById('btnJump');
+
+                const handleTouch = (element, key, value) => {
+                    element.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.keys[key] = value;
+                    });
+                    element.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.keys[key] = !value;
+                    });
+                    element.addEventListener('mousedown', () => this.keys[key] = value);
+                    element.addEventListener('mouseup', () => this.keys[key] = !value);
+                    element.addEventListener('mouseleave', () => this.keys[key] = !value);
+                };
+
+                handleTouch(btnLeft, 'left', true);
+                handleTouch(btnRight, 'right', true);
+                handleTouch(btnJump, 'jump', true);
+
+                // Menu buttons
+                document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('settingsBtn').addEventListener('click', () => this.showSettings());
+                document.getElementById('backBtn').addEventListener('click', () => this.hideSettings());
+                document.getElementById('retryBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('menuBtn').addEventListener('click', () => this.showMenu());
+                document.getElementById('playAgainBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('menuBtn2').addEventListener('click', () => this.showMenu());
+
+                // Touch toggle
+                const touchToggle = document.getElementById('touchToggle');
+                touchToggle.addEventListener('click', () => {
+                    this.touchControlsEnabled = !this.touchControlsEnabled;
+                    touchToggle.classList.toggle('active', this.touchControlsEnabled);
+                    document.getElementById('touchControls').classList.toggle('hidden', !this.touchControlsEnabled);
+                });
+
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            startGame() {
+                this.score = 0;
+                this.coins = 0;
+                this.lives = 3;
+                
+                this.level = new Level(this.canvas);
+                this.level.generate();
+                this.player = new Player(TILE_SIZE * 3, this.canvas.height - TILE_SIZE * 3);
+                this.cameraX = 0;
+                
+                this.gameState = 'playing';
+                
+                document.getElementById('mainMenu').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('winScreen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                
+                if (this.touchControlsEnabled) {
+                    document.getElementById('touchControls').classList.remove('hidden');
+                }
+                
+                this.updateHUD();
+                this.gameLoop();
+            }
+
+            showMenu() {
+                this.gameState = 'menu';
+                document.getElementById('mainMenu').classList.remove('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('winScreen').classList.add('hidden');
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('touchControls').classList.add('hidden');
+            }
+
+            showSettings() {
+                document.getElementById('settingsPanel').classList.remove('hidden');
+            }
+
+            hideSettings() {
+                document.getElementById('settingsPanel').classList.add('hidden');
+            }
+
+            addScore(points) {
+                this.score += points;
+                this.updateHUD();
+            }
+
+            addCoin() {
+                this.coins++;
+                if (this.coins >= 100) {
+                    this.coins = 0;
+                    this.lives++;
+                }
+                this.updateHUD();
+            }
+
+            addLife() {
+                this.lives++;
+                this.updateHUD();
+            }
+
+            updateHUD() {
+                document.getElementById('scoreDisplay').textContent = this.score.toString().padStart(6, '0');
+                document.getElementById('coinDisplay').textContent = 'x' + this.coins.toString().padStart(2, '0');
+                document.getElementById('livesDisplay').textContent = 'x' + this.lives.toString().padStart(2, '0');
+            }
+
+            gameOver() {
+                this.lives--;
+                if (this.lives <= 0) {
+                    this.gameState = 'gameover';
+                    document.getElementById('finalScore').textContent = this.score;
+                    document.getElementById('gameOverScreen').classList.remove('hidden');
+                    document.getElementById('touchControls').classList.add('hidden');
+                } else {
+                    // Respawn
+                    this.player = new Player(TILE_SIZE * 3, this.canvas.height - TILE_SIZE * 3);
+                    this.cameraX = 0;
+                    this.updateHUD();
+                }
+            }
+
+            win() {
+                this.gameState = 'win';
+                this.score += 5000;
+                document.getElementById('winScore').textContent = this.score;
+                document.getElementById('winScreen').classList.remove('hidden');
+                document.getElementById('touchControls').classList.add('hidden');
+            }
+
+            update() {
+                if (this.gameState !== 'playing') return;
+                
+                this.frameCount++;
+                
+                // Update player and get hit block info
+                const hitBlock = this.player.update(this.keys, this.level);
+                
+                // Handle question block hit
+                if (hitBlock) {
+                    if (hitBlock.content === 'mushroom') {
+                        this.level.spawnMushroom(hitBlock.x, hitBlock.y - TILE_SIZE);
+                    } else if (hitBlock.content === 'coin') {
+                        this.addScore(100);
+                        this.addCoin();
+                    }
+                }
+                
+                // Update level (check collisions, etc.)
+                this.level.update(this.player, this);
+                
+                // Check for death (if player fell into pit)
+                if (this.player.dead && this.player.y > this.level.height + 300) {
+                    this.gameOver();
+                }
+                
+                // Camera follow
+                const targetCameraX = this.player.x - this.canvas.width / 3;
+                this.cameraX += (targetCameraX - this.cameraX) * 0.1;
+                this.cameraX = Math.max(0, Math.min(this.cameraX, this.level.width - this.canvas.width));
+            }
+
+            render() {
+                if (this.gameState !== 'playing') return;
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.level.draw(this.ctx, this.cameraX);
+                this.player.draw(this.ctx, this.cameraX);
+            }
+
+            gameLoop() {
+                if (this.gameState === 'playing') {
+                    this.update();
+                    this.render();
+                    requestAnimationFrame(() => this.gameLoop());
+                }
+            }
+        }
+
+        // ==================== INITIALIZE ====================
+        const game = new Game();
+    </script>
+</body>
+</html>
